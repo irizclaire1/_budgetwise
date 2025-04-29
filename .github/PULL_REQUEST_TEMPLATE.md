@@ -1,28 +1,31 @@
 # 📄 Pull Request Title
 <!-- Example: Add Login Page UI and Functionality -->
-Implement Onboarding Screen
+Implement Forgot Password Screen 
 
 ---
 
 # 🛠 Description
 <!-- 
 Describe WHAT you did and WHY.
-- Designed and implemented the Onboarding Screen to introduce new users to the app.
-- Added multiple onboarding slides with descriptions and images
-- Implemented a "Next" and "Previous" button for easy navigation.
+- Created the Forgot Password Screen where users can request a password reset.
+- Added an input field for users to enter their registered email address.
+- Displayed appropriate success and error messages based on the result.
+- Included a back navigation option to return to the login screen.
 ---
 
 # 🔗 Related Task / Issue
 <!-- 
 Link tasks/issues here.
-- Task: Onboarding Screen
+- Task: Forgot Password Screen
 ---
 
 # 🧪 Testing
 <!-- 
 Explain how you tested it.
-- Tested onboarding navigation between slides.
-- Ensured onboarding is not shown again after the first app launch.
+- Entered a valid email and confirmed that a reset email is successfully sent.
+- Tried an invalid/unregistered email to ensure the appropriate error is shown.
+- Verified user is redirected correctly and the UI behaves as expected.
+- Checked for console errors or warnings during the process.
 ---
 
 # ✅ Checklist
