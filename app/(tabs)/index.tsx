@@ -8,7 +8,7 @@ import {
   FlatList,
   ScrollView
 } from "react-native";
-import { Bell } from "lucide-react-native";
+import { Bell, Bot, ExternalLinkIcon } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import * as Progress from 'react-native-progress';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -44,7 +44,6 @@ interface Expense {
 export default function Index() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [profileImage, setProfileImage] = useState("https://via.placeholder.com/150");
   const [financeData, setFinanceData] = useState<FinanceData | null>(null);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [recentExpenses, setRecentExpenses] = useState<Expense[]>([]);
@@ -60,17 +59,11 @@ export default function Index() {
   useEffect(() => {
     const checkAuthAndLoadData = async () => {
       try {
-        const [token, email] = await Promise.all([
-          AsyncStorage.getItem('userToken'),
-          AsyncStorage.getItem('userEmail')
-        ]);
-
-        if (!token) {
-          setLoading(false);
-          return;
-        }
-
-        setUser({ email });
+        // Mock authentication check
+        const mockToken = "mock-token";
+        const mockEmail = "user@example.com";
+        
+        setUser({ email: mockEmail });
         
         // Load mock finance data
         setFinanceData({
@@ -98,7 +91,7 @@ export default function Index() {
 
         setLoading(false);
       } catch (error) {
-        console.error("Error loading data:", error);
+        console.error("Error loading mock data:", error);
         setLoading(false);
       }
     };
@@ -127,9 +120,6 @@ export default function Index() {
     ? (totalSpent / financeData.monthlyIncome) * 100 
     : 0;
 
-  const totalBudget = budgets.reduce((sum, budget) => sum + budget.budget, 0);
-  const budgetUsagePercentage = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
-
   const spendingColor = spendingPercentage > 100 
     ? 'text-red-600' 
     : spendingPercentage > 80 
@@ -152,7 +142,7 @@ export default function Index() {
           <Link href="/(screens)/account" asChild>
             <TouchableOpacity>
               <Image
-                source={{ uri: profileImage }}
+                source={require("../../assets/images/profile.jpg")} // Using local profile image
                 className="w-10 h-10 rounded-full border border-[#1A3C34]"
               />
             </TouchableOpacity>
@@ -172,7 +162,7 @@ export default function Index() {
               {currencySymbol} {financeData.remainingBalance.toLocaleString()}
             </Text>
             
-            {/* Monthly Income Spending */}
+            {/* Monthly Spending */}
             <Text className="text-base text-[#133C13] mb-3 mt-4" style={{ fontFamily: 'Poppins_600SemiBold' }}>
               Monthly Spending
             </Text>
@@ -186,11 +176,7 @@ export default function Index() {
               />
             </View>
             <Text className={`text-sm ${spendingColor}`} style={{ fontFamily: 'Poppins_500Medium' }}>
-              {financeData.monthlyIncome > 0 ? (
-                `You've spent ${Math.round(spendingPercentage)}% of your ${currencySymbol}${financeData.monthlyIncome.toLocaleString()} income`
-              ) : (
-                "Set your monthly income in settings"
-              )}
+              {`You've spent ${Math.round(spendingPercentage)}% of your ${currencySymbol}${financeData.monthlyIncome.toLocaleString()} income`}
             </Text>
           </View>
         )}
@@ -205,7 +191,7 @@ export default function Index() {
             keyExtractor={(item) => item.id}
             scrollEnabled={false}
             renderItem={({ item }) => (
-              <View className="bg-[#E0FFC0] p-4 rounded-lg mb-2 shadow-sm">
+              <View className="bg-[#ebffd8] p-4 rounded-lg mb-2 shadow-sm">
                 <View className="flex-row justify-between">
                   <Text style={{ fontFamily: 'Poppins_600SemiBold' }}>{item.expenseName}</Text>
                   <Text style={{ fontFamily: 'Poppins_600SemiBold' }}>
@@ -218,6 +204,28 @@ export default function Index() {
               </View>
             )}
           />
+
+          {/* Financial Coach Card */}
+          <View className="bg-[#fcfbfb] shadow-md rounded-xl p-6 w-full mt-5 mb-8 border border-gray-200">
+            <View className="flex-row justify-between items-start">
+              <View className="flex-row items-center space-x-3">
+                <View className="bg-[#133C13] p-3 rounded-full mr-3">
+                  <Bot color="white" size={20} />
+                </View>
+                <Text className="text-md text-[#133C13]" style={{ fontFamily: 'Poppins_600SemiBold' }}>
+                  Financial Coach
+                </Text>
+              </View>
+              <TouchableOpacity>
+                <ExternalLinkIcon color="#133C13" size={20} />
+              </TouchableOpacity>
+            </View>
+            <Text className="text-sm text-[#133C13] mt-3 ml-4" style={{ fontFamily: 'Poppins_400Regular' }}>
+              You've spent $120 on dining out this week, which is 40% higher than your weekly average.
+              Consider cooking at home this weekend to stay within your monthly budget.
+            </Text>
+          </View>
+
         </View>
       </ScrollView>
     </View>
