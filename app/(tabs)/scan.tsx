@@ -123,7 +123,7 @@ export default function Scan() {
         {/* Expense Type Selector */}
         <View className="flex-row justify-center mb-6 w-full">
           <TouchableOpacity
-            className={`flex-1 py-3 rounded-l-2xl border ${expenseType === "personal" ? "bg-[#1A3C34] border-[#1A3C34]" : "bg-white border-gray-300"}`}
+            className={`flex-1 py-3 rounded-l-2xl border ${expenseType === "personal" ? "bg-[#133C13] border-[#133C13]" : "bg-white border-gray-300"}`}
             onPress={() => setExpenseType("personal")}
           >
             <View className="flex-row items-center justify-center">
@@ -135,7 +135,7 @@ export default function Scan() {
           </TouchableOpacity>
           
           <TouchableOpacity
-            className={`flex-1 py-3 rounded-r-2xl border ${expenseType === "group" ? "bg-[#1A3C34] border-[#1A3C34]" : "bg-white border-gray-300"}`}
+            className={`flex-1 py-3 rounded-r-2xl border ${expenseType === "group" ? "bg-[#133C13] border-[#133C13]" : "bg-white border-gray-300"}`}
             onPress={() => setExpenseType("group")}
           >
             <View className="flex-row items-center justify-center">
@@ -250,7 +250,7 @@ export default function Scan() {
           </View>
         ) : (
           <TouchableOpacity 
-            className="w-full bg-[#1A3C34] py-4 rounded-full flex-row justify-center items-center"
+            className="w-full bg-[#133C13] py-4 rounded-full flex-row justify-center items-center"
             onPress={startScan}
             disabled={isScanning}
           >
