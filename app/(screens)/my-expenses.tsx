@@ -141,7 +141,7 @@ export default function MyExpenses() {
     opacity: fadeAnim,
     transform: [{ scale: scaleAnim }],
   };
-
+  
   return (
     <View className="flex-1 bg-white">
       {/* Header */}
