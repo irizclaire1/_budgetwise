@@ -7,7 +7,7 @@ export default function Account() {
     email: "user@example.com",
     name: "Iriz Claire",
     isAuthenticated: true,
-    profileImage: require("../../assets/images/profile.jpg") // Make sure this path is correct
+    profileImage: require("../../assets/images/profile.jpg") 
   });
   const router = useRouter();
 
