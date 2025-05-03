@@ -77,9 +77,9 @@ export default function Scan() {
     
     setTimeout(() => {
       const mockResults = [
-        "Starbucks - $4.50 (Coffee)",
-        "Walmart - $28.75 (Groceries)",
-        "Shell Gas - $42.30 (Fuel)"
+        "Starbucks - ₱150 (Coffee)",
+        "SuperMarket - ₱500 (Groceries)",
+        "Shell Gas - ₱1000 (Fuel)"
       ];
       const randomResult = mockResults[Math.floor(Math.random() * mockResults.length)];
       setScanResult(randomResult);
