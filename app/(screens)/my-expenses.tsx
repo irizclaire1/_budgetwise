@@ -1,6 +1,6 @@
 import { Text, View } from "react-native";
 
-export default function MyExpense() {
+export default function MyExpenses() {
   return (
     <View
       style={{
