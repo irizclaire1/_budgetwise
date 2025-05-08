@@ -4,14 +4,6 @@ import { Link } from 'expo-router';
 
 const notifications = [
   {
-    id: '1',
-    type: 'payment',
-    title: 'Payment Received',
-    message: 'You received ₱2,500 from John Doe for groceries',
-    time: '2 mins ago',
-    read: false
-  },
-  {
     id: '2',
     type: 'reminder',
     title: 'Budget Alert',
@@ -63,11 +55,6 @@ export default function Notifications() {
           >
             {/* Icon based on notification type */}
             <View className="mr-3">
-              {item.type === 'payment' && (
-                <View className="bg-[#B2EA71] p-2 rounded-full">
-                  <Wallet size={20} color="#133C13" />
-                </View>
-              )}
               {item.type === 'reminder' && (
                 <View className="bg-[#FFD166] p-2 rounded-full">
                   <AlertTriangle size={20} color="#133C13" />
