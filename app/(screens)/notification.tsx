@@ -34,7 +34,7 @@ export default function Notifications() {
     <View className="flex-1 bg-white">
       {/* Header */}
       <View className="flex-row items-center justify-between p-4 border-b border-gray-200">
-        <Link href="/(tabs)/wallet" asChild>
+        <Link href="/" asChild>
           <TouchableOpacity className="p-2">
             <ChevronLeft size={24} color="#000000" />
           </TouchableOpacity>

@@ -1,13 +1,29 @@
-import React from "react";
-import { Text, View, TouchableOpacity, Modal, Pressable, Alert } from "react-native";
-import { ArrowLeft, ChevronRight, X, UserPlus, Link, LogOut, Trash2, Users } from "lucide-react-native";
+import React, { useState } from "react";
+import {
+  Text,
+  View,
+  TouchableOpacity,
+  Modal,
+  Pressable,
+  Alert,
+  Platform,
+  ActivityIndicator,
+  TextInput,
+  ScrollView,
+  KeyboardAvoidingView,
+} from "react-native";
+import { ArrowLeft, X, UserPlus, Link, LogOut, Trash2, Users, Mail, Send } from "lucide-react-native";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import * as Sharing from "expo-sharing";
+import * as Clipboard from "expo-clipboard";
 
 export default function GroupBudgetSettings() {
   const router = useRouter();
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
-  const [groupName] = useState("Family Budget"); // This would normally come from props or context
+  const [groupName] = useState("Family Budget");
+  const [isCopying, setIsCopying] = useState(false);
+  const [email, setEmail] = useState("");
+  const [isSending, setIsSending] = useState(false);
 
   const handleLeaveGroup = () => {
     Alert.alert(
@@ -15,7 +31,8 @@ export default function GroupBudgetSettings() {
       `Are you sure you want to leave ${groupName}?`,
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Leave", style: "destructive", onPress: () => console.log("Left group") }
+        { text: "Leave", style: "destructive", onPress: () => console.log("Left group") },
+
       ]
     );
   };
@@ -26,103 +43,139 @@ export default function GroupBudgetSettings() {
       `Are you sure you want to delete ${groupName}? This action cannot be undone.`,
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Delete", style: "destructive", onPress: () => console.log("Deleted group") }
+        { text: "Delete", style: "destructive", onPress: () => console.log("Deleted group") },
       ]
     );
   };
 
-  const copyInviteLink = () => {
-    // Logic to copy invite link to clipboard
-    console.log("Invite link copied");
-    Alert.alert("Invite link copied to clipboard!");
+  const copyInviteLink = async () => {
+    setIsCopying(true);
+    await Clipboard.setStringAsync("https://example.com/invite");
+    setIsCopying(false);
+    Alert.alert("Success", "Invite link copied to clipboard!");
+    setInviteModalVisible(false);
+  };
+
+  const handleSendEmailInvite = () => {
+    if (!email) {
+      Alert.alert("Error", "Please enter a valid email address");
+      return;
+    }
+
+    if (!/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email)) {
+      Alert.alert("Error", "Please enter a valid email address");
+      return;
+    }
+
+    setIsSending(true);
+    setTimeout(() => {
+      setIsSending(false);
+      setEmail("");
+      Alert.alert("Invitation Sent", `An invitation has been sent to ${email}`);
+      setInviteModalVisible(false);
+    }, 1500);
   };
 
   return (
-    <View className="flex-1 bg-white">
-      {/* Header */}
-      <View className="pt-12 pb-3 px-5">
-        <View className="flex-row items-center justify-between mb-6">
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === "ios" ? "padding" : "height"} 
+      className="flex-1 bg-gray-50"
+    >
+      <ScrollView contentContainerStyle={{ paddingBottom: 30 }}>
+        {/* Header */}
+        <View className="pt-14 pb-5 px-6 bg-white">
+          <View className="flex-row items-center justify-between">
+            <TouchableOpacity
+              onPress={() => router.back()}
+              className="p-2 -ml-2 rounded-full bg-emerald-100/20"
+              accessibilityLabel="Go back"
+            >
+              <ArrowLeft size={24} color="#1A3C34"/>
+            </TouchableOpacity>
+            <Text className="text-2xl font-bold text-emerald-900">Group Settings</Text>
+            <View className="w-8" />
+          </View>
+        </View>
+
+        {/* Group Info */}
+        <View className="px-6 mt-6 mb-6">
           <TouchableOpacity
-            onPress={() => router.back()}
-            className="p-2 -ml-2"
+            className="flex-row items-center p-5 rounded-2xl bg-white border border-gray-200 shadow-sm"
+            activeOpacity={0.8}
           >
-            <ArrowLeft size={24} color="#1A3C34" />
+            <View className="p-3 rounded-lg bg-emerald-100/20">
+              <Users size={22} color="#1A3C34" />
+            </View>
+            <Text className="flex-1 ml-4 text-lg font-medium text-emerald-900">Group Members</Text>
+            <View className="px-3 py-1.5 rounded-full bg-emerald-100">
+              <Text className="text-sm font-semibold text-emerald-900">3</Text>
+            </View>
           </TouchableOpacity>
-          <Text className="text-2xl font-bold text-green-900">Group Settings</Text>
-          <View className="w-8" />
         </View>
-      </View>
 
-      {/* Group Info */}
-      <View className="px-6 mb-6">
-        <View className="flex-row items-center p-5 bg-lime-50 rounded-xl border border-lime-100">
-          <Users size={24} color="#1A3C34" className="mr-3" />
-          <Text className="text-lg font-semibold text-green-900">{groupName}</Text>
+        {/* Settings List */}
+        <View className="px-6 space-y-3 mb-8">
+          {/* Invite Friend */}
+          <TouchableOpacity
+            className="flex-row items-center p-5 rounded-2xl bg-white border border-gray-200 shadow-sm mb-5"
+            onPress={() => setInviteModalVisible(true)}
+            activeOpacity={0.8}
+            accessibilityLabel="Invite a friend"
+          >
+            <View className="p-3 rounded-lg bg-emerald-100/20">
+              <UserPlus size={22} color="#1A3C34" />
+            </View>
+            <Text className="flex-1 ml-4 text-lg font-medium text-emerald-900">Invite by Email</Text>
+          </TouchableOpacity>
+
+          {/* Invitation Link */}
+          <TouchableOpacity
+            className="flex-row items-center p-5 rounded-2xl bg-white border border-gray-200 shadow-sm"
+            onPress={copyInviteLink}
+            activeOpacity={0.8}
+            accessibilityLabel="Copy invitation link"
+          >
+            <View className="p-3 rounded-lg bg-emerald-100/20">
+              <Link size={22} color="#1A3C34" />
+            </View>
+            <Text className="flex-1 ml-4 text-lg font-medium text-emerald-900">Copy Invitation Link</Text>
+            {isCopying ? (
+              <ActivityIndicator size="small" className="text-emerald-900" />
+            ) : (
+              <Text className="text-sm text-gray-500">Tap to copy</Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Divider */}
+          <View className="my-4 mx-4 border-t border-gray-200" />
+
+          {/* Leave Group */}
+          <TouchableOpacity
+            className="flex-row items-center p-5 rounded-2xl bg-white border border-gray-200 shadow-sm mb-5"
+            onPress={handleLeaveGroup}
+            activeOpacity={0.8}
+            accessibilityLabel="Leave group"
+          >
+            <View className="p-3 rounded-lg bg-amber-100/20">
+              <LogOut size={22} color="#b45309" />
+            </View>
+            <Text className="flex-1 ml-4 text-lg font-medium text-amber-700">Leave Group</Text>
+          </TouchableOpacity>
+
+          {/* Delete Group */}
+          <TouchableOpacity
+            className="flex-row items-center p-5 rounded-2xl bg-white border border-gray-200 shadow-sm"
+            onPress={handleDeleteGroup}
+            activeOpacity={0.8}
+            accessibilityLabel="Delete group"
+          >
+            <View className="p-3 rounded-lg bg-red-100/20">
+              <Trash2 size={22} color="#dc2626" />
+            </View>
+            <Text className="flex-1 ml-4 text-lg font-medium text-red-600">Delete Group</Text>
+          </TouchableOpacity>
         </View>
-      </View>
-
-      {/* Settings List */}
-      <View className="px-6 space-y-4">
-        {/* Invite Friend */}
-        <TouchableOpacity
-          className="flex-row items-center justify-between p-5 bg-lime-50 rounded-xl border border-lime-100"
-          onPress={() => setInviteModalVisible(true)}
-          activeOpacity={0.7}
-        >
-          <View className="flex-row items-center">
-            <UserPlus size={20} color="#1A3C34" className="mr-3" />
-            <Text className="text-lg font-semibold text-green-900">Invite Friend</Text>
-          </View>
-          <View className="bg-lime-200 p-2 rounded-lg">
-            <ChevronRight size={20} color="#1A3C34" />
-          </View>
-        </TouchableOpacity>
-
-        {/* Invitation Link */}
-        <TouchableOpacity
-          className="flex-row items-center justify-between p-5 bg-lime-50 rounded-xl border border-lime-100"
-          onPress={copyInviteLink}
-          activeOpacity={0.7}
-        >
-          <View className="flex-row items-center">
-            <Link size={20} color="#1A3C34" className="mr-3" />
-            <Text className="text-lg font-semibold text-green-900">Invitation Link</Text>
-          </View>
-          <View className="bg-lime-200 p-2 rounded-lg">
-            <ChevronRight size={20} color="#1A3C34" />
-          </View>
-        </TouchableOpacity>
-
-        {/* Leave Group */}
-        <TouchableOpacity
-          className="flex-row items-center justify-between p-5 bg-amber-50 rounded-xl border border-amber-100"
-          onPress={handleLeaveGroup}
-          activeOpacity={0.7}
-        >
-          <View className="flex-row items-center">
-            <LogOut size={20} color="#92400E" className="mr-3" />
-            <Text className="text-lg font-semibold text-amber-900">Leave Group</Text>
-          </View>
-          <View className="bg-amber-200 p-2 rounded-lg">
-            <ChevronRight size={20} color="#92400E" />
-          </View>
-        </TouchableOpacity>
-
-        {/* Delete Group */}
-        <TouchableOpacity
-          className="flex-row items-center justify-between p-5 bg-red-50 rounded-xl border border-red-100"
-          onPress={handleDeleteGroup}
-          activeOpacity={0.7}
-        >
-          <View className="flex-row items-center">
-            <Trash2 size={20} color="#991B1B" className="mr-3" />
-            <Text className="text-lg font-semibold text-red-900">Delete Group</Text>
-          </View>
-          <View className="bg-red-200 p-2 rounded-lg">
-            <ChevronRight size={20} color="#991B1B" />
-          </View>
-        </TouchableOpacity>
-      </View>
+      </ScrollView>
 
       {/* Invite Friend Modal */}
       <Modal
@@ -131,50 +184,85 @@ export default function GroupBudgetSettings() {
         animationType="fade"
         onRequestClose={() => setInviteModalVisible(false)}
       >
-        <View className="flex-1 justify-end bg-black/40">
-          <View className="bg-white rounded-t-2xl p-6 max-h-[60%]">
-            <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-xl font-bold text-green-900">
-                Invite Friends
-              </Text>
-              <TouchableOpacity onPress={() => setInviteModalVisible(false)}>
-                <X size={24} color="#1A3C34" />
-              </TouchableOpacity>
-            </View>
-            
-            <View className="space-y-4">
-              <Text className="text-gray-600 mb-2">
-                Invite friends to join {groupName} by sharing the invitation link.
-              </Text>
-              
-              <TouchableOpacity
-                className="flex-row items-center justify-center p-4 bg-lime-100 rounded-lg border border-lime-200"
-                onPress={copyInviteLink}
-              >
-                <Link size={20} color="#1A3C34" className="mr-2" />
-                <Text className="text-lg font-semibold text-green-900">Copy Invitation Link</Text>
-              </TouchableOpacity>
-              
-              <Text className="text-center text-gray-500 mt-2">
-                Or share via:
-              </Text>
-              
-              <View className="flex-row justify-center space-x-4">
-                {/* These would be actual share buttons in a real app */}
-                <View className="p-3 bg-gray-100 rounded-full">
-                  <Text>WhatsApp</Text>
+        <Pressable 
+          className="flex-1 justify-center bg-black/50" 
+          onPress={() => setInviteModalVisible(false)}
+        >
+          <Pressable className="mx-5">
+            <View 
+              className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xl"
+            >
+              <View className="flex-row justify-between items-center mb-6">
+                <Text className="text-xl font-bold text-emerald-900">Invite to {groupName}</Text>
+                <TouchableOpacity 
+                  onPress={() => setInviteModalVisible(false)} 
+                  accessibilityLabel="Close modal"
+                  className="p-2 -mr-2 rounded-full bg-gray-100"
+                >
+                  <X size={20} color="#064e3b" />
+                </TouchableOpacity>
+              </View>
+
+              <View className="space-y-5 mb-3">
+                <Text className="text-gray-600 text-base mb-3">
+                  Send an invitation to join your budget group.
+                </Text>
+
+                <View>
+                  <View className="flex-row items-center border border-gray-200 rounded-xl px-4 py-3 bg-gray-100 mb-3">
+                    <Mail size={20} className="mr-3" color="#9ca3af" />
+                    <TextInput
+                      className="flex-1 text-base text-emerald-900"
+                      placeholder="friend@example.com"
+                      placeholderTextColor="#9CA3AF"
+                      value={email}
+                      onChangeText={setEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
                 </View>
-                <View className="p-3 bg-gray-100 rounded-full">
-                  <Text>Email</Text>
-                </View>
-                <View className="p-3 bg-gray-100 rounded-full">
-                  <Text>SMS</Text>
+
+                <View className="space-y-3">
+                  <TouchableOpacity
+                    className={`flex-row items-center justify-center p-4 rounded-xl space-x-3 ${isSending ? 'bg-emerald-200' : 'bg-emerald-100'}`}
+                    onPress={handleSendEmailInvite}
+                    disabled={isSending}
+                  >
+                    {isSending ? (
+                      <ActivityIndicator size="small" className="text-emerald-900" />
+                    ) : (
+                      <>
+                        <Send size={20} className="text-emerald-900" />
+                        <Text className="text-lg font-semibold text-emerald-900">
+                          Send Invitation
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+
+                  <View className="flex-row items-center my-2">
+                    <View className="flex-1 h-px bg-gray-200" />
+                    <Text className="px-3 text-sm text-gray-500">or</Text>
+                    <View className="flex-1 h-px bg-gray-200" />
+                  </View>
+
+                  <TouchableOpacity
+                    className="flex-row items-center justify-center p-4 rounded-xl border border-gray-200 space-x-3 bg-gray-100"
+                    onPress={copyInviteLink}
+                  >
+                    <Link size={20} className="text-emerald-900" />
+                    <Text className="text-lg font-medium text-emerald-900">
+                      Copy Invite Link
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             </View>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 }

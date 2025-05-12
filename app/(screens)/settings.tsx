@@ -26,7 +26,7 @@ export default function Settings() {
           >
             <ArrowLeft size={24} color="#1A3C34" />
           </TouchableOpacity>
-          <Text className="text-2xl font-bold text-green-900">Settings</Text>
+          <Text className="text-2xl font-bold text-green-900">Setting</Text>
           <View className="w-8" />
         </View>
       </View>

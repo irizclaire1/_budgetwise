@@ -69,8 +69,8 @@ export default function Index() {
         setFinanceData({
           userId: "mock-user-id",
           monthlyIncome: 50000,
-          remainingBalance: 25000,
-          totalExpenses: 25000,
+          remainingBalance: 32500,
+          totalExpenses: 17500,
           currency: "PHP"
         });
 
@@ -83,10 +83,10 @@ export default function Index() {
 
         // Load mock recent expenses
         setRecentExpenses([
-          { id: "1", expenseName: "Grocery Shopping", amount: 2500, category: "Food", date: "2023-06-15" },
+          { id: "1", expenseName: "Grocery Shopping", amount: 2500, category: "Food & Dining", date: "2023-06-15" },
           { id: "2", expenseName: "Gasoline", amount: 1500, category: "Transportation", date: "2023-06-14" },
           { id: "3", expenseName: "Movie Tickets", amount: 800, category: "Entertainment", date: "2023-06-13" },
-          { id: "4", expenseName: "Dinner Out", amount: 1200, category: "Food", date: "2023-06-12" },
+          { id: "4", expenseName: "Dinner Out", amount: 1200, category: "Food & Dining", date: "2023-06-12" },
         ]);
 
         setLoading(false);
@@ -136,9 +136,11 @@ export default function Index() {
           resizeMode="contain"
         />
         <View className="flex-row items-center gap-6">
-          <TouchableOpacity>
-            <Bell color="#1A3C34" size={24} />
-          </TouchableOpacity>
+          <Link href="/(screens)/notification" asChild>
+            <TouchableOpacity>
+              <Bell color="#1A3C34" size={24} />
+            </TouchableOpacity>
+          </Link>
           <Link href="/(screens)/account" asChild>
             <TouchableOpacity>
               <Image
@@ -199,7 +201,7 @@ export default function Index() {
                   </Text>
                 </View>
                 <Text style={{ fontFamily: 'Poppins_400Regular', color: '#666' }}>
-                  {item.category} • {new Date(item.date).toLocaleDateString()}
+                  {item.category}
                 </Text>
               </View>
             )}
@@ -221,7 +223,7 @@ export default function Index() {
               </TouchableOpacity>
             </View>
             <Text className="text-sm text-[#133C13] mt-3 ml-4" style={{ fontFamily: 'Poppins_400Regular' }}>
-              You've spent $120 on dining out this week, which is 40% higher than your weekly average.
+              You've spent ₱400 on dining out this week, which is 40% higher than your weekly average.
               Consider cooking at home this weekend to stay within your monthly budget.
             </Text>
           </View>
