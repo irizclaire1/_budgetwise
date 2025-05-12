@@ -169,7 +169,7 @@ export default function MyExpenses() {
     opacity: fadeAnim,
     transform: [{ scale: scaleAnim }],
   };
-
+  
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <View className="flex-1 bg-white">

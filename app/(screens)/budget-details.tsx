@@ -91,7 +91,6 @@ export default function BudgetDetails() {
 
     return () => clearTimeout(timer);
   }, [id]);
-
   useEffect(() => {
     if (editModalVisible || addBudgetModalVisible || editBudgetModalVisible || deleteExpensesModalVisible) {
       Animated.spring(scaleValue, {

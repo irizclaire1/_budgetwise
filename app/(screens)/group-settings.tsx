@@ -32,6 +32,7 @@ export default function GroupBudgetSettings() {
       [
         { text: "Cancel", style: "cancel" },
         { text: "Leave", style: "destructive", onPress: () => console.log("Left group") },
+
       ]
     );
   };
