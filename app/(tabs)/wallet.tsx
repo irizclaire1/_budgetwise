@@ -1,6 +1,6 @@
 import { Link } from "expo-router";
 import { View, Text, TouchableOpacity, Modal, Pressable, TextInput, RefreshControl, ScrollView } from "react-native";
-import { ChevronRight, Ellipsis } from "lucide-react-native";
+import { ChevronRight, Ellipsis, Bot } from "lucide-react-native";
 import * as Progress from 'react-native-progress';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, MenuProvider } from 'react-native-popup-menu';
 import { useState } from "react";
@@ -62,6 +62,36 @@ export default function Wallet() {
       ? 'text-yellow-600' 
       : 'text-[#133C13]';
 
+  const getFinancialAdvice = () => {
+    if (spendingPercentage > 100) {
+      return {
+        title: "Budget Exceeded!",
+        message: `You've spent ${currencySymbol}${(totalSpent - financeData.monthlyIncome).toLocaleString()} more than your budget. Consider:\n• Reviewing recent expenses\n• Cutting discretionary spending\n• Adjusting your budget categories`,
+        color: "#EF4444"
+      };
+    } else if (spendingPercentage > 80) {
+      return {
+        title: "Approaching Limit",
+        message: "You're close to your budget limit. Suggestions:\n• Track daily spending\n• Delay non-essential purchases\n• Review your budget allocations",
+        color: "#F59E0B"
+      };
+    } else if (spendingPercentage > 50) {
+      return {
+        title: "Moderate Spending",
+        message: "You've used half your budget. Tips:\n• Compare to previous months\n• Identify spending patterns\n• Celebrate staying on track!",
+        color: "#133C13"
+      };
+    } else {
+      return {
+        title: "Good Progress",
+        message: "You're managing finances well. Recommendations:\n• Continue tracking expenses\n• Consider increasing savings\n• Review budget for optimization",
+        color: "#133C13"
+      };
+    }
+  };
+
+  const financialAdvice = getFinancialAdvice();
+
   const onRefresh = () => {
     setRefreshing(true);
     // Simulate data refresh
@@ -84,13 +114,15 @@ export default function Wallet() {
 
   const handleAddMonthlyIncome = () => {
     const incomeValue = parseFloat(newIncome) || 0;
-    setFinanceData(prev => ({
-      ...prev,
-      monthlyIncome: incomeValue,
-      remainingBalance: incomeValue - prev.totalExpenses
-    }));
-    setNewIncome("");
-    setAddModalVisible(false);
+    if (incomeValue > 0) {
+      setFinanceData(prev => ({
+        ...prev,
+        monthlyIncome: prev.monthlyIncome + incomeValue,
+        remainingBalance: prev.remainingBalance + incomeValue
+      }));
+      setNewIncome("");
+      setAddModalVisible(false);
+    }
   };
 
   const handleEditMonthlyIncome = () => {
@@ -264,6 +296,49 @@ export default function Wallet() {
                 <ChevronRight size={23} color="#1A3C34" />
               </TouchableOpacity>
             </Link>
+
+            {/* Financial Coach Card */}
+            <View className="bg-[#fcfbfb] rounded-xl p-5 border border-gray-200 mb-4">
+              <View className="flex-row items-start">
+                <View className="bg-[#133C13] p-2.5 rounded-full mr-3">
+                  <Bot color="white" size={18} />
+                </View>
+                <View className="flex-1">
+                  <View className="flex-row items-center mb-1">
+                    <Text 
+                      className="text-base mr-2" 
+                      style={{ 
+                        fontFamily: 'Poppins_600SemiBold',
+                        color: financialAdvice.color 
+                      }}
+                    >
+                      {financialAdvice.title}
+                    </Text>
+                    <Text className="text-sm text-gray-500" style={{ fontFamily: 'Poppins_400Regular' }}>
+                      {Math.round(spendingPercentage)}% of budget
+                    </Text>
+                  </View>
+                  <Text 
+                    className="text-sm" 
+                    style={{ 
+                      fontFamily: 'Poppins_400Regular',
+                      color: '#133C13',
+                      lineHeight: 20
+                    }}
+                  >
+                    {financialAdvice.message}
+                  </Text>
+                  
+                  {spendingPercentage < 50 && (
+                    <View className="mt-3 bg-[#E7F5E3] p-3 rounded-lg">
+                      <Text className="text-xs text-[#133C13]" style={{ fontFamily: 'Poppins_500Medium' }}>
+                        💡 Pro Tip: With {Math.round(100 - spendingPercentage)}% remaining, you could consider increasing your savings or investments!
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            </View>
           </View>
         </ScrollView>
 
@@ -279,12 +354,12 @@ export default function Wallet() {
           >
             <Pressable className="w-80 bg-white rounded-lg p-6">
               <Text className="text-xl font-bold text-[#133C13] mb-4" style={{ fontFamily: 'Poppins_600SemiBold' }}>
-                Add Monthly Income
+                Add Additional Income
               </Text>
               
               <TextInput
                 className="border border-gray-300 rounded-lg p-3 mb-4"
-                placeholder={`Enter amount (${currencySymbol})`}
+                placeholder={`Enter amount to add (${currencySymbol})`}
                 keyboardType="numeric"
                 value={newIncome}
                 onChangeText={setNewIncome}

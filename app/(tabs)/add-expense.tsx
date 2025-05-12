@@ -1,3 +1,4 @@
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
   View,
@@ -15,7 +16,7 @@ import {
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { PlusCircle, Mic } from "lucide-react-native";
+import { PlusCircle, Mic, Users, User, ArrowLeft } from "lucide-react-native";
 
 interface Budget {
   id: string;
@@ -23,6 +24,14 @@ interface Budget {
   budget: number;
   totalSpent: number;
   remainingBalance: number;
+  groupId?: string;
+}
+
+interface Group {
+  id: string;
+  name: string;
+  categories: Budget[];
+  members: string[];
 }
 
 const currencySymbols: Record<string, string> = {
@@ -37,82 +46,137 @@ const currencySymbols: Record<string, string> = {
 };
 
 export default function AddExpense() {
-  // Form state
+  const router = useRouter();
+  const { groupId, groupName } = useLocalSearchParams<{
+    groupId?: string;
+    groupName?: string;
+  }>();
+  
+  // State management
+  const [expenseType, setExpenseType] = useState<"personal" | "group">(
+    groupId ? "group" : "personal"
+  );
+  const [selectedGroup, setSelectedGroup] = useState(groupId || "");
+  const [paidBy, setPaidBy] = useState("You");
   const [expenseName, setExpenseName] = useState("");
   const [category, setCategory] = useState("");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  
-  // Budget modal state
   const [showBudgetModal, setShowBudgetModal] = useState(false);
   const [newCategory, setNewCategory] = useState("");
   const [newBudget, setNewBudget] = useState("");
-  
-  // Financial data
-  const [monthlyIncome, setMonthlyIncome] = useState(10000);
+  const [monthlyIncome] = useState(10000);
   const [remainingBalance, setRemainingBalance] = useState(7500);
-  const [budgets, setBudgets] = useState<Budget[]>([
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [currency] = useState("₱");
+  const [isListening, setIsListening] = useState(false);
+  const [voiceText, setVoiceText] = useState("");
+  const [voiceProgress, setVoiceProgress] = useState(0);
+  const progressInterval = useRef<NodeJS.Timeout>();
+
+  // Animation refs
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  // Sample data
+  const [groups, setGroups] = useState<Group[]>([
+    { 
+      id: "1", 
+      name: "Family Budget",
+      members: ["You", "Spouse", "Child 1", "Child 2"],
+      categories: [
+        {
+          id: "g1",
+          category: "Groceries",
+          budget: 3000,
+          totalSpent: 1200,
+          remainingBalance: 1800,
+          groupId: "1"
+        }
+      ]
+    }
+  ]);
+
+  const [personalBudgets, setPersonalBudgets] = useState<Budget[]>([
     {
       id: "1",
       category: "Food",
       budget: 2000,
       totalSpent: 500,
       remainingBalance: 1500
-    },
-    {
-      id: "2",
-      category: "Transportation",
-      budget: 1000,
-      totalSpent: 300,
-      remainingBalance: 700
     }
   ]);
-  
-  // UI state
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [currency, setCurrency] = useState("₱");
-  
-  // Voice input state
-  const [isListening, setIsListening] = useState(false);
-  const [voiceText, setVoiceText] = useState("");
-  const [voiceProgress, setVoiceProgress] = useState(0);
-  const progressInterval = useRef<NodeJS.Timeout>();
 
-  // Animation values for modal
-  const scaleAnim = useRef(new Animated.Value(0.9)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
+  // Handle navigation context
+  useEffect(() => {
+    if (groupId) {
+      const group = groups.find(g => g.id === groupId);
+      if (group?.members?.length) {
+        setPaidBy(group.members[0]);
+      }
+    } else {
+      setPaidBy("You");
+      setCategory("");
+    }
+  }, [groupId, groups]);
 
-  // Reset all form fields
-  const resetForm = () => {
+  // Get current budgets based on expense type
+  const getCurrentBudgets = useCallback(() => {
+    return expenseType === 'personal' 
+      ? personalBudgets 
+      : groups.find(g => g.id === selectedGroup)?.categories || [];
+  }, [expenseType, selectedGroup, personalBudgets, groups]);
+
+  const currentBudgets = getCurrentBudgets();
+
+  // Get current members for group expenses
+  const getCurrentMembers = useCallback(() => {
+    return expenseType === 'group' && selectedGroup
+      ? groups.find(g => g.id === selectedGroup)?.members || ["You"]
+      : ["You"];
+  }, [expenseType, selectedGroup, groups]);
+
+  const currentMembers = getCurrentMembers();
+
+  // Format currency with commas
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat().format(value);
+  };
+
+  // Reset form while maintaining context
+  const resetForm = useCallback(() => {
     setExpenseName("");
     setCategory("");
     setAmount("");
     setNote("");
     setDate(new Date());
     setVoiceText("");
-  };
-
-  // Refresh function
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    resetForm();
     
-    // Simulate data refresh
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
-  }, []);
+    if (groupId) {
+      const group = groups.find(g => g.id === groupId);
+      setPaidBy(group?.members?.[0] || "You");
+    } else {
+      setPaidBy("You");
+    }
+  }, [groupId, groups]);
 
-  // Format currency for display
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat().format(value);
-  };
+  // Handle back navigation
+  const handleBackPress = useCallback(() => {
+    if (groupId) {
+      router.push({
+        pathname: "/(screens)/group-budget-details",
+        params: { id: groupId }
+      });
+    } else {
+      router.replace("/(tabs)/add-expense");
+    }
+  }, [groupId, router]);
 
-  // Modal animation handlers
-  const animateModalIn = () => {
+  // Animation handlers
+  const animateModalIn = useCallback(() => {
     setShowBudgetModal(true);
     Animated.parallel([
       Animated.spring(scaleAnim, {
@@ -126,9 +190,9 @@ export default function AddExpense() {
         useNativeDriver: true,
       }),
     ]).start();
-  };
+  }, [scaleAnim, opacityAnim]);
 
-  const animateModalOut = () => {
+  const animateModalOut = useCallback(() => {
     Animated.parallel([
       Animated.spring(scaleAnim, {
         toValue: 0.9,
@@ -140,84 +204,78 @@ export default function AddExpense() {
         useNativeDriver: true,
       }),
     ]).start(() => setShowBudgetModal(false));
+  }, [scaleAnim, opacityAnim]);
+
+  // Handle date picker changes
+  const onChangeDate = (event: any, selectedDate?: Date) => {
+    const currentDate = selectedDate || date;
+    setShowDatePicker(Platform.OS === 'ios');
+    setDate(currentDate);
   };
 
   // Voice input handlers
-  const handleVoiceInput = () => {
+  const handleVoiceInput = useCallback(() => {
     if (isListening) {
       stopVoiceListening();
     } else {
       startVoiceListening();
     }
-  };
+  }, [isListening]);
 
-  const startVoiceListening = () => {
+  const startVoiceListening = useCallback(() => {
     setIsListening(true);
     setVoiceText("Listening...");
     
-    // Simulate progress while "listening"
     progressInterval.current = setInterval(() => {
       setVoiceProgress(prev => (prev >= 100 ? 0 : prev + 10));
     }, 300);
     
-    // After 3 seconds, simulate a voice command
     setTimeout(() => {
       const mockCommands = [
         "Add 50 dollars for lunch under Food",
-        "Log 25 dollars for bus fare under Transportation",
-        "Record 15 dollars for coffee under Food",
-        "Expense 30 dollars for parking under Transportation",
-        "Add 12 dollars for snacks under Food"
+        "Log 25 dollars for bus fare under Transportation"
       ];
       const randomCommand = mockCommands[Math.floor(Math.random() * mockCommands.length)];
       setVoiceText(randomCommand);
       
-      // Auto-process after showing the command
       setTimeout(() => {
         stopVoiceListening();
         processVoiceCommand(randomCommand);
       }, 1500);
     }, 3000);
-  };
+  }, []);
 
-  const stopVoiceListening = () => {
+  const stopVoiceListening = useCallback(() => {
     setIsListening(false);
-    clearInterval(progressInterval.current);
+    if (progressInterval.current) {
+      clearInterval(progressInterval.current);
+    }
     setVoiceProgress(0);
-  };
+  }, []);
 
-  const processVoiceCommand = (command: string) => {
-    // Simple mock parser
+  const processVoiceCommand = useCallback((command: string) => {
     const amountMatch = command.match(/\d+/);
     const categoryMatch = command.match(/under\s(\w+)/i);
     
-    if (amountMatch) {
-      setAmount(amountMatch[0]);
-    }
+    if (amountMatch) setAmount(amountMatch[0]);
     
     if (categoryMatch) {
       const voiceCategory = categoryMatch[1];
-      const matchedBudget = budgets.find(b => 
+      const matchedBudget = currentBudgets.find(b => 
         b.category.toLowerCase().includes(voiceCategory.toLowerCase())
       );
-      if (matchedBudget) {
-        setCategory(matchedBudget.category);
-      }
+      if (matchedBudget) setCategory(matchedBudget.category);
     }
     
-    // Set a mock expense name
     const descriptionMatch = command.match(/for\s(.+?)\sunder/i) || 
                            command.match(/Add\s.+\sfor\s(.+)/i);
-    if (descriptionMatch) {
-      setExpenseName(descriptionMatch[1].trim());
-    }
+    if (descriptionMatch) setExpenseName(descriptionMatch[1].trim());
     
-    // Auto-set current date
     setDate(new Date());
-  };
+  }, [currentBudgets]);
 
-  // Budget management
-  const handleAddBudget = () => {
+  // Handle adding new budget
+  const handleAddBudget = useCallback(() => {
     if (!newCategory.trim() || !newBudget) {
       Alert.alert("Error", "Please fill all fields");
       return;
@@ -229,9 +287,11 @@ export default function AddExpense() {
       return;
     }
 
-    const categoryExists = budgets.some(
-      b => b.category.toLowerCase() === newCategory.trim().toLowerCase()
+    const budgetsToCheck = getCurrentBudgets();
+    const categoryExists = budgetsToCheck.some(
+      (b: Budget) => b.category.toLowerCase() === newCategory.trim().toLowerCase()
     );
+    
     if (categoryExists) {
       Alert.alert("Error", "Category already exists");
       return;
@@ -245,39 +305,52 @@ export default function AddExpense() {
         category: newCategory.trim(),
         budget: parsedBudget,
         totalSpent: 0,
-        remainingBalance: parsedBudget
+        remainingBalance: parsedBudget,
+        groupId: expenseType === 'group' ? selectedGroup : undefined
       };
+
+      if (expenseType === 'personal') {
+        setPersonalBudgets([...personalBudgets, newBudgetItem]);
+      } else if (selectedGroup) {
+        setGroups(groups.map(group => 
+          group.id === selectedGroup 
+            ? { ...group, categories: [...group.categories, newBudgetItem] }
+            : group
+        ));
+      }
       
-      setBudgets([...budgets, newBudgetItem]);
       setNewCategory("");
       setNewBudget("");
       animateModalOut();
       setLoading(false);
       Alert.alert("Success", "Budget created successfully");
     }, 1000);
-  };
+  }, [newCategory, newBudget, expenseType, selectedGroup, personalBudgets, groups]);
 
-  // Date picker handler
-  const onChangeDate = (event: any, selectedDate?: Date) => {
-    const currentDate = selectedDate || date;
-    setShowDatePicker(Platform.OS === 'ios');
-    setDate(currentDate);
-  };
-
-  // Expense submission
-  const handleSave = () => {
+  // Handle saving expense
+  const handleSave = useCallback(() => {
     if (!category) {
-      Alert.alert("Error", "Please select a category.");
+      Alert.alert("Error", "Please select a category");
+      return;
+    }
+
+    if (expenseType === 'group' && !selectedGroup) {
+      Alert.alert("Error", "Please select a group");
+      return;
+    }
+
+    if (expenseType === 'group' && !paidBy) {
+      Alert.alert("Error", "Please select who paid for this expense");
       return;
     }
 
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount)) {
-      Alert.alert("Invalid Amount", "Please enter a valid number for amount.");
+      Alert.alert("Invalid Amount", "Please enter a valid number for amount");
       return;
     }
 
-    const selectedBudget = budgets.find(b => b.category === category);
+    const selectedBudget = currentBudgets.find(b => b.category === category);
     if (selectedBudget && parsedAmount > selectedBudget.remainingBalance) {
       Alert.alert("Warning", `This expense exceeds your remaining budget of ${formatCurrency(selectedBudget.remainingBalance)}`);
       return;
@@ -286,9 +359,9 @@ export default function AddExpense() {
     setLoading(true);
     
     setTimeout(() => {
-      if (selectedBudget) {
-        setBudgets(budgets.map(b => 
-          b.id === selectedBudget.id 
+      if (expenseType === 'personal') {
+        setPersonalBudgets(personalBudgets.map(b => 
+          b.id === selectedBudget?.id 
             ? { 
                 ...b, 
                 totalSpent: b.totalSpent + parsedAmount,
@@ -296,17 +369,40 @@ export default function AddExpense() {
               }
             : b
         ));
+      } else if (selectedGroup) {
+        setGroups(groups.map(group => 
+          group.id === selectedGroup
+            ? {
+                ...group,
+                categories: group.categories.map(b =>
+                  b.id === selectedBudget?.id
+                    ? {
+                        ...b,
+                        totalSpent: b.totalSpent + parsedAmount,
+                        remainingBalance: b.remainingBalance - parsedAmount
+                      }
+                    : b
+                )
+              }
+            : group
+        ));
       }
       
       setRemainingBalance(prev => prev - parsedAmount);
       
-      Alert.alert("Success", "Expense saved successfully!");
-      resetForm(); // Clear all fields including voice text
+      Alert.alert(
+        "Success", 
+        `Expense saved to ${expenseType === 'personal' ? 'personal' : groups.find(g => g.id === selectedGroup)?.name} budget!`
+      );
+      resetForm();
       setLoading(false);
+      if (groupId) {
+        router.back();
+      }
     }, 1000);
-  };
+  }, [category, amount, expenseType, selectedGroup, paidBy, currentBudgets, personalBudgets, groups]);
 
-  // Clean up interval on unmount
+  // Cleanup interval on unmount
   useEffect(() => {
     return () => {
       if (progressInterval.current) {
@@ -315,7 +411,104 @@ export default function AddExpense() {
     };
   }, []);
 
-  // Render voice input section
+  // Render expense type selector
+  const renderExpenseTypeSelector = () => (
+    <View className="mb-4">
+      <Text className="text-md text-gray-700 mb-2" style={{ fontFamily: 'Poppins_500Medium' }}>
+        Expense Type
+      </Text>
+      <View className="flex-row bg-[#E7F5E3] rounded-lg p-1">
+        <TouchableOpacity
+          className={`flex-1 py-3 rounded-md flex-row items-center justify-center ${expenseType === 'personal' ? 'bg-white' : ''}`}
+          onPress={() => {
+            setExpenseType('personal');
+            setCategory("");
+            setPaidBy("You");
+          }}
+          disabled={!!groupId}
+        >
+          <User size={18} color={expenseType === 'personal' ? '#1A3C34' : '#56756e'} className="mr-2" />
+          <Text className={expenseType === 'personal' ? 'text-[#1A3C34]' : 'text-[#56756e]'} style={{ fontFamily: 'Poppins_500Medium' }}>
+            Personal
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          className={`flex-1 py-3 rounded-md flex-row items-center justify-center ${expenseType === 'group' ? 'bg-white' : ''}`}
+          onPress={() => {
+            setExpenseType('group');
+            setCategory("");
+            if (!groupId) {
+              setSelectedGroup("");
+            }
+            setPaidBy("");
+          }}
+        >
+          <Users size={18} color={expenseType === 'group' ? '#1A3C34' : '#56756e'} className="mr-2" />
+          <Text className={expenseType === 'group' ? 'text-[#1A3C34]' : 'text-[#56756e]'} style={{ fontFamily: 'Poppins_500Medium' }}>
+            Group
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {expenseType === 'group' && !groupId && (
+        <View className="mt-3">
+          <Text className="text-md text-gray-700 mb-1" style={{ fontFamily: 'Poppins_500Medium' }}>
+            Select Group
+          </Text>
+          <View className="bg-white rounded-lg border border-gray-300 py-1">
+            <Picker
+              selectedValue={selectedGroup}
+              onValueChange={(itemValue) => {
+                setSelectedGroup(itemValue);
+                setCategory("");
+              }}
+              enabled={!loading}
+            >
+              <Picker.Item label="Select a group" value="" />
+              {groups.map((group) => (
+                <Picker.Item 
+                  key={group.id} 
+                  label={group.name} 
+                  value={group.id} 
+                />
+              ))}
+            </Picker>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+
+  // Render paid by selector
+  const renderPaidBySelector = () => (
+    <View>
+      <Text className="text-md text-gray-700 mb-1 mt-3" style={{ fontFamily: 'Poppins_500Medium' }}>
+        Paid by
+      </Text>
+      <View className="bg-white rounded-lg border border-gray-300 py-1">
+        <Picker
+          selectedValue={paidBy}
+          onValueChange={(itemValue) => setPaidBy(itemValue)}
+          enabled={!loading && (expenseType === 'personal' || (expenseType === 'group' && !!selectedGroup))}
+        >
+          {expenseType === 'personal' ? (
+            <Picker.Item label="You" value="You" />
+          ) : (
+            currentMembers.map((member) => (
+              <Picker.Item 
+                key={member} 
+                label={member} 
+                value={member} 
+              />
+            ))
+          )}
+        </Picker>
+      </View>
+    </View>
+  );
+
+  // Render voice input
   const renderVoiceInput = () => (
     <View className="bg-[#E7F5E3] p-4 py-6 rounded-2xl mb-4 mt-4">
       <TouchableOpacity 
@@ -376,24 +569,31 @@ export default function AddExpense() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={onRefresh}
+            onRefresh={resetForm}
             colors={["#1A3C34"]}
             tintColor="#1A3C34"
           />
         }
       >
-        <Text className="text-1xl mb-5 mt-2 text-center text-[#1A3C34]" style={{ fontFamily: 'Poppins_600SemiBold' }}>
-          Add New Expense
+
+        <Text className="text-1xl mb-5 mt-2 text-center text-[#1A3C34] border-b border-gray-100 pb-4" style={{ fontFamily: 'Poppins_600SemiBold' }}>
+          {expenseType === 'group' && selectedGroup 
+            ? `Add Expense to ${groupName || "Group"}`
+            : "Add New Expense"}
         </Text>
 
-        <TouchableOpacity 
-          className="bg-[#E7F5E3] p-4 py-6 rounded-2xl mb-4 flex-row justify-between items-center"
-          onPress={animateModalIn}
-          disabled={loading}
-        >
-          <Text className="text-[#1A3C34] text-md" style={{ fontFamily: 'Poppins_500Medium' }}>Add Budget</Text>
-          <PlusCircle size={24} color="#1A3C34" />
-        </TouchableOpacity>
+        {renderExpenseTypeSelector()}
+
+        {expenseType === 'personal' && (
+          <TouchableOpacity 
+            className="bg-[#E7F5E3] p-4 py-6 rounded-2xl mb-4 flex-row justify-between items-center"
+            onPress={animateModalIn}
+            disabled={loading}
+          >
+            <Text className="text-[#1A3C34] text-md" style={{ fontFamily: 'Poppins_500Medium' }}>Add Budget</Text>
+            <PlusCircle size={24} color="#1A3C34" />
+          </TouchableOpacity>
+        )}
 
         <Modal
           visible={showBudgetModal}
@@ -492,14 +692,14 @@ export default function AddExpense() {
           <View>
             <Text className="text-md text-gray-700 mb-1 mt-3" style={{ fontFamily: 'Poppins_500Medium' }}>Category</Text>
             <View className="bg-white rounded-lg border border-gray-300 py-1">
-              {budgets.length > 0 ? (
+              {currentBudgets.length > 0 ? (
                 <Picker
                   selectedValue={category}
                   onValueChange={(itemValue) => setCategory(itemValue)}
                   enabled={!loading}
                 >
                   <Picker.Item label="Select a category" value="" />
-                  {budgets.map((budget) => (
+                  {currentBudgets.map((budget) => (
                     <Picker.Item 
                       key={budget.id} 
                       label={`${budget.category} (${formatCurrency(budget.remainingBalance)} remaining)`} 
@@ -510,12 +710,18 @@ export default function AddExpense() {
               ) : (
                 <View className="py-4 px-4">
                   <Text className="text-gray-500 text-center" style={{ fontFamily: 'Poppins_400Regular' }}>
-                    No categories available. Add a budget to create categories.
+                    {expenseType === 'personal' 
+                      ? "No categories available. Add a budget to create categories."
+                      : selectedGroup 
+                        ? "This group has no categories yet."
+                        : "Please select a group first."}
                   </Text>
                 </View>
               )}
             </View>
           </View>
+
+          {renderPaidBySelector()}
 
           <View>
             <Text className="text-md text-gray-700 mb-1 mt-3" style={{ fontFamily: 'Poppins_500Medium' }}>Total Amount</Text>
@@ -564,13 +770,14 @@ export default function AddExpense() {
           <TouchableOpacity
             className="bg-[#B2EA71] rounded-lg py-3 mt-6 mb-3"
             onPress={handleSave}
-            disabled={!category || budgets.length === 0 || loading}
+            disabled={!category || currentBudgets.length === 0 || loading || 
+                     (expenseType === 'group' && (!selectedGroup || !paidBy))}
           >
             {loading ? (
               <ActivityIndicator color="#133C13" />
             ) : (
               <Text className="text-[#133C13] text-center text-md" style={{ fontFamily: 'Poppins_500Medium' }}>
-                Save
+                {expenseType === 'personal' ? 'Save Personal Expense' : 'Save to Group'}
               </Text>
             )}
           </TouchableOpacity>

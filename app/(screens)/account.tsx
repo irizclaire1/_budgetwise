@@ -1,34 +1,29 @@
-import { View, Text, TouchableOpacity, Alert, Image, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, Alert, Image } from "react-native";
 import { useRouter, Redirect } from "expo-router";
 import { useState } from "react";
+import { ArrowLeft, User, Settings, LogOut } from "lucide-react-native";
 
 export default function Account() {
   const [mockUser, setMockUser] = useState({
-    email: "user@example.com",
-    name: "Iriz Claire",
+    email: "janedoe@gmail.com",
+    name: "Jane Doe",
     isAuthenticated: true,
-    profileImage: require("../../assets/images/profile.jpg") 
+    profileImage: require("../../assets/images/profile.jpg"),
   });
+
   const router = useRouter();
 
   const handleLogout = () => {
-    Alert.alert(
-      "Log Out",
-      "Are you sure you want to log out?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
+    Alert.alert("Log Out", "Are you sure you want to log out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Log Out",
+        onPress: () => {
+          setMockUser({ ...mockUser, isAuthenticated: false });
+          router.replace("/login");
         },
-        { 
-          text: "Log Out", 
-          onPress: () => {
-            setMockUser({ ...mockUser, isAuthenticated: false });
-            router.replace("/login");
-          }
-        }
-      ]
-    );
+      },
+    ]);
   };
 
   if (!mockUser.isAuthenticated) {
@@ -36,105 +31,83 @@ export default function Account() {
   }
 
   return (
-    <View style={styles.container}>
-      {/* Profile Header */}
-      <View style={styles.profileHeader}>
-        <Image 
-          source={mockUser.profileImage} 
-          style={styles.profileImage}
-        />
-        <Text style={styles.userName}>{mockUser.name}</Text>
-        <Text style={styles.userEmail}>{mockUser.email}</Text>
+    <View className="flex-1 bg-white">
+      {/* Header */}
+      <View className="bg-lime-300 pt-12 pb-14 px-5">
+        <View className="flex-row items-center justify-between mb-6">
+          <TouchableOpacity
+            onPress={() => router.back()}
+            className="p-2 -ml-2"
+          >
+            <ArrowLeft size={24} color="#1A3C34" />
+          </TouchableOpacity>
+          <Text className="text-2xl font-bold text-green-900">Profile</Text>
+          <View className="w-8" />
+        </View>
       </View>
 
-      {/* Account Actions */}
-      <View style={styles.actionsContainer}>
+      {/* Profile Section */}
+      <View className="items-center -mt-14 mb-6">
+        <View className="p-1 bg-white rounded-full shadow-sm">
+          <Image
+            source={mockUser.profileImage}
+            className="w-32 h-32 rounded-full border-2 border-lime-100"
+          />
+        </View>
+        <Text className="text-3xl font-bold text-green-900 mt-4">
+          {mockUser.name}
+        </Text>
+        <Text className="text-lg text-gray-500 mt-1">{mockUser.email}</Text>
+      </View>
+
+      {/* Action Buttons */}
+      <View className="px-6 mt-4 space-y-5">
         <TouchableOpacity
-          style={[styles.button, styles.editButton]}
-          onPress={() => Alert.alert("Edit Profile", "Edit profile functionality would go here")}
+          className="flex-row items-center justify-between p-5 bg-lime-50 rounded-xl border border-lime-100 mb-4"
+          onPress={() => Alert.alert("Edit Profile")}
+          activeOpacity={0.7}
         >
-          <Text style={styles.buttonText}>Edit Profile</Text>
+          <View className="flex-row items-center">
+            <View className="bg-lime-200 p-2 rounded-lg mr-4">
+              <User size={20} color="#1A3C34" />
+            </View>
+            <Text className="text-lg font-semibold text-green-900">
+              Edit Profile
+            </Text>
+          </View>
+          <View className="w-5 h-5" />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.button, styles.settingsButton]}
+          className="flex-row items-center justify-between p-5 bg-lime-50 rounded-xl border border-lime-100 mb-4"
           onPress={() => router.push("/settings")}
+          activeOpacity={0.7}
         >
-          <Text style={styles.buttonText}>Settings</Text>
+          <View className="flex-row items-center">
+            <View className="bg-lime-200 p-2 rounded-lg mr-4">
+              <Settings size={20} color="#1A3C34" />
+            </View>
+            <Text className="text-lg font-semibold text-green-900">
+              Settings
+            </Text>
+          </View>
+          <View className="w-5 h-5" />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.button, styles.logoutButton]}
+          className="flex-row items-center justify-between p-5 bg-red-50 rounded-xl border border-red-100"
           onPress={handleLogout}
+          activeOpacity={0.7}
         >
-          <Text style={styles.buttonText}>Logout</Text>
+          <View className="flex-row items-center">
+            <View className="bg-red-200 p-2 rounded-lg mr-4">
+              <LogOut size={20} color="#D32F2F" />
+            </View>
+            <Text className="text-lg font-semibold text-red-600">Logout</Text>
+          </View>
+          <View className="w-5 h-5" />
         </TouchableOpacity>
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-    padding: 20,
-  },
-  profileHeader: {
-    alignItems: 'center',
-    marginTop: 40,
-    marginBottom: 40,
-  },
-  profileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 3,
-    borderColor: '#B2EA71',
-    marginBottom: 15,
-  },
-  userName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 5,
-    color: '#1A3C34',
-  },
-  userEmail: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  actionsContainer: {
-    width: '100%',
-  },
-  button: {
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  editButton: {
-    backgroundColor: '#E7F5E3',
-    borderWidth: 1,
-    borderColor: '#A3C5A8',
-  },
-  settingsButton: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-  },
-  logoutButton: {
-    backgroundColor: '#FFEBEE',
-    borderWidth: 1,
-    borderColor: '#EF9A9A',
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});
