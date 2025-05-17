@@ -69,18 +69,34 @@ export default function Login() {
       );
 
       if (user) {
-        // Store mock auth token
-        await AsyncStorage.setItem('userToken', 'mock-token');
-        await AsyncStorage.setItem('userEmail', trimmedEmail);
-        
-        Alert.alert("Login Successful", "Welcome back!");
-        router.replace("/");
+        try {
+          await AsyncStorage.setItem('userToken', 'mock-token');
+          await AsyncStorage.setItem('userEmail', trimmedEmail);
+          Alert.alert("Login Successful", "Welcome back!");
+          router.replace("/");
+        } catch (error) {
+          console.error("Error storing auth data:", error);
+          Alert.alert("Error", "Failed to store login data.");
+          setLoading(false);
+          return;
+        }
       } else {
         Alert.alert("Login Failed", "Invalid email or password");
         setPasswordError("Invalid email or password");
       }
       setLoading(false);
     }, 1500);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem('userToken');
+      await AsyncStorage.removeItem('userEmail');
+      router.replace("/login");
+    } catch (error) {
+      console.error("Error during logout:", error);
+      Alert.alert("Error", "Failed to log out.");
+    }
   };
 
   return (
