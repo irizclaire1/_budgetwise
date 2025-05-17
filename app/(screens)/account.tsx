@@ -1,7 +1,7 @@
 import { View, Text, TouchableOpacity, Alert, Image } from "react-native";
 import { useRouter, Redirect } from "expo-router";
 import { useState } from "react";
-import { ArrowLeft, User, Settings, LogOut } from "lucide-react-native";
+import { ArrowLeft, User, Settings, LogOut, History } from "lucide-react-native";
 
 export default function Account() {
   const [mockUser, setMockUser] = useState({
@@ -73,6 +73,22 @@ export default function Account() {
             </View>
             <Text className="text-lg font-semibold text-green-900">
               Edit Profile
+            </Text>
+          </View>
+          <View className="w-5 h-5" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          className="flex-row items-center justify-between p-5 bg-lime-50 rounded-xl border border-lime-100 mb-4"
+          onPress={() => router.push("/history")}
+          activeOpacity={0.7}
+        >
+          <View className="flex-row items-center">
+            <View className="bg-lime-200 p-2 rounded-lg mr-4">
+              <History size={20} color="#1A3C34" />
+            </View>
+            <Text className="text-lg font-semibold text-green-900">
+              History
             </Text>
           </View>
           <View className="w-5 h-5" />
