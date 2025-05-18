@@ -24,7 +24,7 @@ interface Budget {
   budget: number;
   totalSpent: number;
   remainingBalance: number;
-  transactions: { id: string; name: string; amount: number; date: string }[];
+  transactions: { id: string; name: string; amount: number; date: string; note?: string }[];
 }
 
 const mockBudgets: Budget[] = [
@@ -35,9 +35,9 @@ const mockBudgets: Budget[] = [
     totalSpent: 677,
     remainingBalance: 1323,
     transactions: [
-      { id: "t1", name: "Burger King", amount: 399, date: "2025-05-01" },
+      { id: "t1", name: "Burger King", amount: 399, date: "2025-05-01", note: "Lunch with friends" },
       { id: "t2", name: "Jollibee", amount: 78, date: "2025-05-02" },
-      { id: "t3", name: "Starbucks", amount: 200, date: "2025-05-03" },
+      { id: "t3", name: "Starbucks", amount: 200, date: "2025-05-03", note: "Morning coffee" },
       { id: "t4", name: "Burger King", amount: 399, date: "2025-05-04" },
       { id: "t5", name: "Jollibee", amount: 78, date: "2025-05-05" },
       { id: "t6", name: "Starbucks", amount: 200, date: "2025-05-06" },
@@ -69,11 +69,14 @@ export default function BudgetDetails() {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [addBudgetModalVisible, setAddBudgetModalVisible] = useState(false);
   const [editBudgetModalVisible, setEditBudgetModalVisible] = useState(false);
+  const [expenseDetailModalVisible, setExpenseDetailModalVisible] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<Budget['transactions'][0] | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<{
     id: string;
     name: string;
     amount: number;
     date: string;
+    note?: string;
   } | null>(null);
   const [budgetInput, setBudgetInput] = useState("");
   const scaleValue = useRef(new Animated.Value(0.95)).current;
@@ -92,7 +95,7 @@ export default function BudgetDetails() {
     return () => clearTimeout(timer);
   }, [id]);
   useEffect(() => {
-    if (editModalVisible || addBudgetModalVisible || editBudgetModalVisible || deleteExpensesModalVisible) {
+    if (editModalVisible || addBudgetModalVisible || editBudgetModalVisible || deleteExpensesModalVisible || expenseDetailModalVisible) {
       Animated.spring(scaleValue, {
         toValue: 1,
         friction: 8,
@@ -102,7 +105,7 @@ export default function BudgetDetails() {
     } else {
       scaleValue.setValue(0.95);
     }
-  }, [editModalVisible, addBudgetModalVisible, editBudgetModalVisible, deleteExpensesModalVisible]);
+  }, [editModalVisible, addBudgetModalVisible, editBudgetModalVisible, deleteExpensesModalVisible, expenseDetailModalVisible]);
 
   const handleAddBudget = () => {
     setBudgetInput("");
@@ -160,14 +163,37 @@ export default function BudgetDetails() {
     }
   };
 
-  const openEditModal = (transaction: { id: string; name: string; amount: number; date: string }) => {
+  const openEditModal = (transaction: { id: string; name: string; amount: number; date: string; note?: string }) => {
     setEditingTransaction(transaction);
     setEditModalVisible(true);
   };
 
+  const openExpenseDetailModal = (transaction: Budget['transactions'][0]) => {
+    setSelectedTransaction(transaction);
+    setExpenseDetailModalVisible(true);
+  };
+
   const saveTransaction = () => {
     if (editingTransaction && budget) {
-      console.log("Saving transaction:", editingTransaction);
+      const updatedTransactions = budget.transactions.map((txn) =>
+        txn.id === editingTransaction.id
+          ? {
+              ...txn,
+              name: editingTransaction.name,
+              amount: editingTransaction.amount,
+              date: editingTransaction.date,
+              note: editingTransaction.note,
+            }
+          : txn
+      );
+      const newTotalSpent = updatedTransactions.reduce((sum, txn) => sum + txn.amount, 0);
+
+      setBudget({
+        ...budget,
+        transactions: updatedTransactions,
+        totalSpent: newTotalSpent,
+        remainingBalance: budget.budget - newTotalSpent,
+      });
       setEditModalVisible(false);
       setEditingTransaction(null);
     }
@@ -433,6 +459,17 @@ export default function BudgetDetails() {
                       placeholder="YYYY-MM-DD"
                       placeholderTextColor="#9CA3AF"
                     />
+                    <Text className="text-base text-[#133C13] mb-2" style={{ fontFamily: "Poppins_500Medium" }}>
+                      Note
+                    </Text>
+                    <TextInput
+                      className="border border-gray-200 rounded-lg p-3 mb-4 text-[#133C13]"
+                      style={{ fontFamily: "Poppins_400Regular" }}
+                      value={editingTransaction.note || ""}
+                      onChangeText={(text) => setEditingTransaction({ ...editingTransaction, note: text })}
+                      placeholder="Optional note"
+                      placeholderTextColor="#9CA3AF"
+                    />
                     <View className="flex-row justify-end space-x-3">
                       <Pressable
                         className="px-5 py-2.5 rounded-lg border border-gray-200 bg-white"
@@ -447,7 +484,7 @@ export default function BudgetDetails() {
                         </Text>
                       </Pressable>
                       <Pressable
-                        className="px-5 py-2.5 rounded-lg bg-[#133C13]"
+                        className="px-5 py-2.5 rounded-lg bg-[#133C13] ml-4"
                         onPress={saveTransaction}
                         style={({ pressed }) => ({
                           opacity: pressed ? 0.7 : 1,
@@ -477,7 +514,6 @@ export default function BudgetDetails() {
                 style={{ transform: [{ scale: scaleValue }] }}
                 className="bg-white rounded-2xl w-[95%] max-w-lg shadow-lg"
               >
-                {/* In the Add Budget Modal */}
                 <View className="bg-[#F8FAFC] rounded-t-2xl p-4 border-b border-gray-100 flex-row justify-between items-center">
                   <Text className="text-xl text-[#133C13]" style={{ fontFamily: "Poppins_600SemiBold" }}>
                     Add Additional Budget
@@ -682,6 +718,103 @@ export default function BudgetDetails() {
             </View>
           </Modal>
 
+          {/* Expense Detail Modal */}
+          <Modal
+            animationType="fade"
+            transparent={true}
+            visible={expenseDetailModalVisible}
+            onRequestClose={() => setExpenseDetailModalVisible(false)}
+          >
+            <View className="flex-1 justify-center items-center bg-black/40">
+              <Animated.View
+                style={{ transform: [{ scale: scaleValue }] }}
+                className="bg-white rounded-2xl w-[95%] max-w-lg shadow-lg"
+              >
+                <View className="bg-[#F8FAFC] rounded-t-2xl p-4 border-b border-gray-100 flex-row justify-between items-center">
+                  <Text className="text-xl text-[#133C13]" style={{ fontFamily: 'Poppins_600SemiBold' }}>
+                    Expense Details
+                  </Text>
+                  <Pressable
+                    onPress={() => setExpenseDetailModalVisible(false)}
+                    className="p-2 -mr-2"
+                  >
+                    <X size={24} color="#6B7280" />
+                  </Pressable>
+                </View>
+
+                {selectedTransaction && (
+                  <ScrollView className="p-5">
+                    <View className="mb-4">
+                      <View className="flex-row justify-between items-center mb-2">
+                        <Text className="text-lg text-[#133C13] flex-1" style={{ fontFamily: 'Poppins_600SemiBold' }}>
+                          {selectedTransaction.name}
+                        </Text>
+                        <Text className="text-lg text-red-500" style={{ fontFamily: 'Poppins_600SemiBold' }}>
+                          -₱{selectedTransaction.amount.toLocaleString()}
+                        </Text>
+                      </View>
+                      <View className="flex-row justify-between">
+                        <Text className="text-sm text-gray-500" style={{ fontFamily: 'Poppins_400Regular' }}>
+                          {selectedTransaction.date}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View className="h-px bg-gray-100 my-3" />
+
+                    <View className="mb-4">
+                      <Text className="text-base text-[#133C13] mb-2" style={{ fontFamily: 'Poppins_500Medium' }}>
+                        Category
+                      </Text>
+                      <Text className="text-sm text-gray-600" style={{ fontFamily: 'Poppins_400Regular' }}>
+                        {budget.category}
+                      </Text>
+                    </View>
+
+                    <View className="mb-4">
+                      <Text className="text-base text-[#133C13] mb-2" style={{ fontFamily: 'Poppins_500Medium' }}>
+                        Note
+                      </Text>
+                      <Text className="text-sm text-gray-600" style={{ fontFamily: 'Poppins_400Regular' }}>
+                        {selectedTransaction.note || 'No note added'}
+                      </Text>
+                    </View>
+
+                    <View className="flex-row justify-end space-x-3 pb-4">
+                      <Pressable
+                        className="px-5 py-2.5 rounded-lg border border-gray-200 bg-white"
+                        onPress={() => setExpenseDetailModalVisible(false)}
+                        style={({ pressed }) => ({
+                          opacity: pressed ? 0.7 : 1,
+                          transform: [{ scale: pressed ? 0.95 : 1 }],
+                        })}
+                      >
+                        <Text className="text-gray-600" style={{ fontFamily: 'Poppins_500Medium' }}>
+                          Close
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        className="px-5 py-2.5 rounded-lg bg-[#133C13] ml-4"
+                        onPress={() => {
+                          setExpenseDetailModalVisible(false);
+                          openEditModal(selectedTransaction);
+                        }}
+                        style={({ pressed }) => ({
+                          opacity: pressed ? 0.7 : 1,
+                          transform: [{ scale: pressed ? 0.95 : 1 }],
+                        })}
+                      >
+                        <Text className="text-white" style={{ fontFamily: 'Poppins_500Medium' }}>
+                          Edit
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </ScrollView>
+                )}
+              </Animated.View>
+            </View>
+          </Modal>
+
           {/* Budget Overview Card */}
           <View className="px-4 pt-4">
             <View className="bg-[#B2EA71] shadow-md rounded-xl p-6 mb-4 border border-gray-200">
@@ -811,7 +944,7 @@ export default function BudgetDetails() {
                     <TouchableOpacity
                       className="bg-[#F8FAFC] rounded-xl border border-gray-100 shadow-sm"
                       activeOpacity={0.8}
-                      onPress={() => {}}
+                      onPress={() => openExpenseDetailModal(item)}
                     >
                       <View className="p-4">
                         <View className="flex-row justify-between items-center mb-2">
@@ -852,9 +985,6 @@ export default function BudgetDetails() {
                               </Text>
                             </View>
                           </View>
-                          <TouchableOpacity onPress={() => openEditModal(item)} className="p-2">
-                            <PenSquare size={16} color="#6B7280" />
-                          </TouchableOpacity>
                         </View>
                       </View>
                     </TouchableOpacity>

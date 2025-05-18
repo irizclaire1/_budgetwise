@@ -100,6 +100,8 @@ export default function GroupBudget() {
   const [loading, setLoading] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupBudget, setNewGroupBudget] = useState("");
   const [emails, setEmails] = useState<string[]>([]);
@@ -110,6 +112,8 @@ export default function GroupBudget() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const inviteScaleAnim = useRef(new Animated.Value(0.8)).current;
   const inviteFadeAnim = useRef(new Animated.Value(0)).current;
+  const deleteScaleAnim = useRef(new Animated.Value(0.8)).current;
+  const deleteFadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (showGroupModal) {
@@ -156,6 +160,29 @@ export default function GroupBudget() {
       }).start();
     }
   }, [showInviteModal]);
+
+  useEffect(() => {
+    if (showDeleteModal) {
+      Animated.parallel([
+        Animated.timing(deleteFadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.spring(deleteScaleAnim, {
+          toValue: 1,
+          friction: 4,
+          useNativeDriver: true,
+        })
+      ]).start();
+    } else {
+      Animated.timing(deleteFadeAnim, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [showDeleteModal]);
 
   const handleAddGroupBudget = async () => {
     if (!newGroupName || !newGroupBudget) return;
@@ -239,18 +266,33 @@ export default function GroupBudget() {
     return Math.min(spent / total, 1);
   };
 
-  const handleDeleteGroup = (id: string) => {
+  const confirmDeleteGroup = (id: string) => {
+    setGroupToDelete(id);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteGroup = () => {
+    if (!groupToDelete) return;
+    
     // Find the group to get its budget amount
-    const groupToDelete = groupBudgets.find(group => group.id === id);
-    if (groupToDelete) {
+    const group = groupBudgets.find(g => g.id === groupToDelete);
+    if (group) {
       // Return the budget to the group balance
       setGroupFinanceData({
         ...groupFinanceData,
-        groupBalance: groupFinanceData.groupBalance + groupToDelete.totalBudget
+        groupBalance: groupFinanceData.groupBalance + group.totalBudget
       });
+      // Remove the group from the list
+      setGroupBudgets(groupBudgets.filter(g => g.id !== groupToDelete));
     }
-    // Remove the group from the list
-    setGroupBudgets(groupBudgets.filter(group => group.id !== id));
+    
+    setShowDeleteModal(false);
+    setGroupToDelete(null);
+  };
+
+  const getGroupName = (id: string) => {
+    const group = groupBudgets.find(g => g.id === id);
+    return group ? group.groupName : 'this group';
   };
 
   if (loading) {
@@ -273,6 +315,11 @@ export default function GroupBudget() {
   const inviteModalStyle = {
     opacity: inviteFadeAnim,
     transform: [{ scale: inviteScaleAnim }],
+  };
+
+  const deleteModalStyle = {
+    opacity: deleteFadeAnim,
+    transform: [{ scale: deleteScaleAnim }],
   };
 
   return (
@@ -310,7 +357,7 @@ export default function GroupBudget() {
                 <Swipeable
                   key={item.id}
                   renderRightActions={(progress, dragX) => 
-                    renderRightActions(progress, dragX, () => handleDeleteGroup(item.id))
+                    renderRightActions(progress, dragX, () => confirmDeleteGroup(item.id))
                   }
                   friction={2}
                   rightThreshold={40}
@@ -577,8 +624,60 @@ export default function GroupBudget() {
             </Animated.View>
           </View>
         </Modal>
-      </SafeAreaView>
 
+        {/* Delete Confirmation Modal */}
+        <Modal
+          visible={showDeleteModal}
+          transparent={true}
+          animationType="none"
+          onRequestClose={() => setShowDeleteModal(false)}
+        >
+          <Animated.View 
+            className="absolute inset-0 bg-black/40"
+            style={{ opacity: deleteFadeAnim }}
+          />
+          <View className="flex-1 justify-center items-center px-6">
+            <Animated.View 
+              className="bg-white rounded-3xl p-7 w-full shadow-lg"
+              style={deleteModalStyle}
+            >
+              <View className="mb-6 flex-row justify-center">
+                <View className="w-16 h-16 bg-red-100 rounded-full items-center justify-center mb-3">
+                  <Trash2 size={26} color="#ef4444" />
+                </View>
+              </View>
+              
+              <Text className="text-2xl font-bold text-[#133C13] text-center mb-4">
+                Delete Group Budget
+              </Text>
+
+              <Text className="text-base text-gray-600 text-center mb-8">
+                Are you sure you want to delete {groupToDelete ? getGroupName(groupToDelete) : 'this group'}? All data will be permanently removed.
+              </Text>
+              
+              <View className="flex-row justify-between gap-5">
+                <TouchableOpacity
+                  className="flex-1 bg-gray-100 px-4 py-4 rounded-xl items-center"
+                  onPress={() => setShowDeleteModal(false)}
+                >
+                  <Text className="text-[#444444] font-medium">
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  className="flex-1 bg-red-500 px-4 py-4 rounded-xl items-center"
+                  onPress={handleDeleteGroup}
+                >
+                  <Text className="text-white font-medium">
+                    Delete
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          </View>
+        </Modal>
+      </SafeAreaView>
     </GestureHandlerRootView>
   );
 }

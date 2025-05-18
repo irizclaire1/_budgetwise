@@ -158,7 +158,7 @@ export default function GroupExpenseDetails() {
   }, [categoryId]);
 
   useEffect(() => {
-    if (modalVisible || bulkDeleteModalVisible || addBudgetModalVisible || editBudgetModalVisible) {
+    if (modalVisible || bulkDeleteModalVisible || addBudgetModalVisible || editBudgetModalVisible || editExpenseModalVisible) {
       Animated.spring(scaleValue, {
         toValue: 1,
         friction: 8,
@@ -168,7 +168,7 @@ export default function GroupExpenseDetails() {
     } else {
       scaleValue.setValue(0.95);
     }
-  }, [modalVisible, bulkDeleteModalVisible, addBudgetModalVisible, editBudgetModalVisible]);
+  }, [modalVisible, bulkDeleteModalVisible, addBudgetModalVisible, editBudgetModalVisible, editExpenseModalVisible]);
 
   const calculateOwedAmount = (expense: { paidBy: string, amount: number }) => {
     if (expense.paidBy === currentUser) return null;
@@ -182,17 +182,66 @@ export default function GroupExpenseDetails() {
   };
 
   const handleSettleExpense = () => {
-    setModalVisible(false);
+    Alert.alert(
+      "Confirm Payment",
+      "Are you sure you want to mark this expense as paid for yourself?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Confirm",
+          onPress: () => {
+            if (category && selectedExpense) {
+              const updatedExpenses = category.expenses.map(exp =>
+                exp.id === selectedExpense.id
+                  ? {
+                      ...exp,
+                      settledMembers: exp.settledMembers
+                        ? [...exp.settledMembers, currentUser]
+                        : [currentUser]
+                    }
+                  : exp
+              );
+              setCategory({ ...category, expenses: updatedExpenses });
+              setModalVisible(false);
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
   };
 
   const openEditExpenseModal = (expense: GroupExpenseCategory['expenses'][0]) => {
-    setEditingExpense(expense);
+    setEditingExpense({ ...expense, settledMembers: expense.settledMembers || [] });
     setEditExpenseModalVisible(true);
+  };
+
+  const toggleSettledMember = (member: string) => {
+    if (editingExpense && editingExpense.paidBy === currentUser) {
+      const updatedSettledMembers = editingExpense.settledMembers?.includes(member)
+        ? editingExpense.settledMembers.filter(m => m !== member)
+        : [...(editingExpense.settledMembers || []), member];
+      setEditingExpense({ ...editingExpense, settledMembers: updatedSettledMembers });
+    }
   };
 
   const saveExpenseChanges = () => {
     if (category && editingExpense) {
-      // Calculate the difference in amount to update totals
+      // Validate inputs
+      if (!editingExpense.description.trim()) {
+        Alert.alert("Invalid Input", "Expense name cannot be empty.");
+        return;
+      }
+      if (editingExpense.amount <= 0) {
+        Alert.alert("Invalid Input", "Amount must be greater than 0.");
+        return;
+      }
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(editingExpense.date)) {
+        Alert.alert("Invalid Input", "Date must be in YYYY-MM-DD format.");
+        return;
+      }
+
       const originalExpense = category.expenses.find(exp => exp.id === editingExpense.id);
       const amountDiff = originalExpense ? (editingExpense.amount - originalExpense.amount) : 0;
       
@@ -201,18 +250,12 @@ export default function GroupExpenseDetails() {
         totalSpent: category.totalSpent + amountDiff,
         remainingBalance: category.remainingBalance - amountDiff,
         expenses: category.expenses.map(exp => 
-          exp.id === editingExpense.id ? editingExpense : exp
+          exp.id === editingExpense.id ? { ...editingExpense } : exp
         )
       });
       setEditExpenseModalVisible(false);
+      setEditingExpense(null);
     }
-  };
-
-  const handleEditExpense = (expenseId: string) => {
-    router.push({
-      pathname: "/(screens)/edit-expense",
-      params: { groupId: groupIdStr, categoryId, expenseId }
-    });
   };
 
   const handleDeleteExpense = (expenseId: string) => {
@@ -229,9 +272,14 @@ export default function GroupExpenseDetails() {
           style: "destructive",
           onPress: () => {
             if (category) {
+              const deletedExpense = category.expenses.find(exp => exp.id === expenseId);
+              const updatedExpenses = category.expenses.filter(exp => exp.id !== expenseId);
+              const newTotalSpent = updatedExpenses.reduce((sum, exp) => sum + exp.amount, 0);
               setCategory({
                 ...category,
-                expenses: category.expenses.filter(exp => exp.id !== expenseId)
+                expenses: updatedExpenses,
+                totalSpent: newTotalSpent,
+                remainingBalance: category.budget - newTotalSpent
               });
             }
           },
@@ -260,9 +308,13 @@ export default function GroupExpenseDetails() {
           style: "destructive",
           onPress: () => {
             if (category) {
+              const updatedExpenses = category.expenses.filter(exp => !selectedExpensesForDeletion.includes(exp.id));
+              const newTotalSpent = updatedExpenses.reduce((sum, exp) => sum + exp.amount, 0);
               setCategory({
                 ...category,
-                expenses: category.expenses.filter(exp => !selectedExpensesForDeletion.includes(exp.id))
+                expenses: updatedExpenses,
+                totalSpent: newTotalSpent,
+                remainingBalance: category.budget - newTotalSpent
               });
               setBulkDeleteModalVisible(false);
               setSelectedExpensesForDeletion([]);
@@ -815,6 +867,7 @@ export default function GroupExpenseDetails() {
           </View>
         </Modal>
 
+        {/* Edit Expense Modal */}
         <Modal animationType="fade" transparent={true} visible={editExpenseModalVisible} onRequestClose={() => setEditExpenseModalVisible(false)}>
           <View className="flex-1 justify-center items-center bg-black/40">
             <Animated.View
@@ -830,7 +883,7 @@ export default function GroupExpenseDetails() {
                 </Pressable>
               </View>
               {editingExpense && (
-                <View className="p-5">
+                <ScrollView className="p-5">
                   <Text className="text-base text-[#133C13] mb-2" style={{ fontFamily: "Poppins_500Medium" }}>
                     Expense Name
                   </Text>
@@ -867,7 +920,53 @@ export default function GroupExpenseDetails() {
                     placeholder="YYYY-MM-DD"
                     placeholderTextColor="#9CA3AF"
                   />
-                  <View className="flex-row justify-end space-x-3">
+                  <Text className="text-base text-[#133C13] mb-2" style={{ fontFamily: "Poppins_500Medium" }}>
+                    Settled Members
+                  </Text>
+                  {editingExpense.paidBy === currentUser ? (
+                    category.members.map(member => (
+                      <TouchableOpacity
+                        key={member}
+                        className="flex-row items-center py-2.5 px-3 bg-white rounded-lg mb-1.5 border border-gray-100"
+                        onPress={() => toggleSettledMember(member)}
+                      >
+                        <View className="mr-3">
+                          {editingExpense.settledMembers?.includes(member) ? (
+                            <Check size={20} color="#133C13" />
+                          ) : (
+                            <Square size={20} color="#6B7280" />
+                          )}
+                        </View>
+                        <Text className="text-gray-700" style={{ fontFamily: "Poppins_400Regular" }}>
+                          {member}
+                        </Text>
+                      </TouchableOpacity>
+                    ))
+                  ) : (
+                    <View className="mb-4">
+                      {category.members.map(member => (
+                        <View
+                          key={member}
+                          className="flex-row items-center py-2.5 px-3 bg-gray-50 rounded-lg mb-1.5 border border-gray-200 opacity-60"
+                        >
+                          <View className="mr-3">
+                            {editingExpense.settledMembers?.includes(member) ? (
+                              <Check size={20} color="#133C13" />
+                            ) : (
+                              <Square size={20} color="#9CA3AF" />
+                            )}
+                          </View>
+                          <Text className="text-gray-500" style={{ fontFamily: "Poppins_400Regular" }}>
+                            {member}
+                          </Text>
+                        </View>
+                      ))}
+                      <Text className="text-sm text-gray-500 mt-2" style={{ fontFamily: "Poppins_400Regular" }}>
+                        Only the payer can edit settled members.
+                      </Text>
+                    </View>
+                  )}
+                  <View className="flex-row justify-end space-x-3 pt-4">
                     <Pressable
                       className="px-5 py-2.5 rounded-lg border border-gray-200 bg-white"
                       onPress={() => setEditExpenseModalVisible(false)}
@@ -881,7 +980,7 @@ export default function GroupExpenseDetails() {
                       </Text>
                     </Pressable>
                     <Pressable
-                      className="px-5 py-2.5 rounded-lg bg-[#133C13]"
+                      className="px-5 py-2.5 rounded-lg bg-[#133C13] ml-4"
                       onPress={saveExpenseChanges}
                       style={({ pressed }) => ({
                         opacity: pressed ? 0.7 : 1,
@@ -893,7 +992,7 @@ export default function GroupExpenseDetails() {
                       </Text>
                     </Pressable>
                   </View>
-                </View>
+                </ScrollView>
               )}
             </Animated.View>
           </View>
@@ -987,6 +1086,7 @@ export default function GroupExpenseDetails() {
           </View>
         </Modal>
 
+        {/* Add Budget Modal */}
         <Modal
           animationType="fade"
           transparent={true}

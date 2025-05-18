@@ -1,7 +1,7 @@
 import { Link } from "expo-router";
 import { Animated } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
-import { Text, View, TouchableOpacity, FlatList, ActivityIndicator, ScrollView, Modal, TextInput } from "react-native";
+import { Text, View, TouchableOpacity, FlatList, ActivityIndicator, ScrollView, Modal, TextInput, Alert } from "react-native";
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react-native";
 import { Swipeable, RectButton } from 'react-native-gesture-handler';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -66,9 +66,13 @@ export default function MyExpenses() {
   const [newCategory, setNewCategory] = useState("");
   const [newBudget, setNewBudget] = useState("");
   const [modalLoading, setModalLoading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [budgetToDelete, setBudgetToDelete] = useState<string | null>(null);
 
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const deleteScaleAnim = useRef(new Animated.Value(0.8)).current;
+  const deleteFadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (showBudgetModal) {
@@ -92,6 +96,29 @@ export default function MyExpenses() {
       }).start();
     }
   }, [showBudgetModal]);
+
+  useEffect(() => {
+    if (showDeleteModal) {
+      Animated.parallel([
+        Animated.timing(deleteFadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.spring(deleteScaleAnim, {
+          toValue: 1,
+          friction: 4,
+          useNativeDriver: true,
+        })
+      ]).start();
+    } else {
+      Animated.timing(deleteFadeAnim, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [showDeleteModal]);
 
   const handleAddBudget = async () => {
     if (!newCategory || !newBudget || !financeData) return;
@@ -121,15 +148,25 @@ export default function MyExpenses() {
     }, 800);
   };
 
-  const handleDeleteBudget = (id: string) => {
-    const budgetToDelete = budgets.find(budget => budget.id === id);
-    if (budgetToDelete) {
-      setBudgets(budgets.filter(budget => budget.id !== id));
+  const confirmDelete = (id: string) => {
+    setBudgetToDelete(id);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteBudget = () => {
+    if (!budgetToDelete) return;
+    
+    const budgetToDeleteItem = budgets.find(budget => budget.id === budgetToDelete);
+    if (budgetToDeleteItem) {
+      setBudgets(budgets.filter(budget => budget.id !== budgetToDelete));
       setFinanceData({
         ...financeData,
-        remainingBalance: financeData.remainingBalance + budgetToDelete.remainingBalance
+        remainingBalance: financeData.remainingBalance + budgetToDeleteItem.remainingBalance
       });
     }
+    
+    setShowDeleteModal(false);
+    setBudgetToDelete(null);
   };
 
   const renderRightActions = (id: string) => (
@@ -143,7 +180,7 @@ export default function MyExpenses() {
         borderRadius: 8,
         marginLeft: 8,
       }}
-      onPress={() => handleDeleteBudget(id)}
+      onPress={() => confirmDelete(id)}
     >
       <Trash2 size={24} color="#FFFFFF" />
     </RectButton>
@@ -169,7 +206,17 @@ export default function MyExpenses() {
     opacity: fadeAnim,
     transform: [{ scale: scaleAnim }],
   };
-  
+
+  const deleteModalStyle = {
+    opacity: deleteFadeAnim,
+    transform: [{ scale: deleteScaleAnim }],
+  };
+
+  const getCategoryName = (id: string) => {
+    const budget = budgets.find(b => b.id === id);
+    return budget ? budget.category : 'this budget';
+  };
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <View className="flex-1 bg-white">
@@ -310,6 +357,55 @@ export default function MyExpenses() {
                         Add Budget
                       </Text>
                     )}
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+            </View>
+          </Modal>
+
+          {/* Delete Confirmation Modal */}
+          <Modal
+            visible={showDeleteModal}
+            transparent={true}
+            animationType="none"
+            onRequestClose={() => setShowDeleteModal(false)}
+          >
+            <Animated.View 
+              className="absolute inset-0 bg-black/30"
+              style={{ opacity: deleteFadeAnim }}
+            />
+            <View className="flex-1 justify-center items-center">
+              <Animated.View 
+                className="bg-white rounded-2xl p-6 w-[90%] max-w-md"
+                style={deleteModalStyle}
+              >
+                <View className="flex-row justify-center mb-4">
+                  <Text className="text-xl font-bold text-[#1A3C34]">
+                    Delete Budget
+                  </Text>
+                </View>
+                
+                <Text className="text-md text-[#1A3C34] mb-6 text-center">
+                  Are you sure you want to delete {budgetToDelete ? getCategoryName(budgetToDelete) : 'this budget'}? This action cannot be undone.
+                </Text>
+
+                <View className="flex-row justify-between gap-4">
+                  <TouchableOpacity
+                    className="flex-1 bg-gray-100 px-6 py-3 rounded-lg items-center"
+                    onPress={() => setShowDeleteModal(false)}
+                  >
+                    <Text className="text-[#1A3C34]">
+                      Cancel
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    className="flex-1 bg-[#FF6363] px-6 py-3 rounded-lg items-center"
+                    onPress={handleDeleteBudget}
+                  >
+                    <Text className="text-white">
+                      Delete
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </Animated.View>
